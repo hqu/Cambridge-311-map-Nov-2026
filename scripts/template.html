@@ -1,0 +1,534 @@
+<title>Cambridge Open Tickets Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen app. Filter rail on the left, map fills the rest; stacks map-over-rail on phones. */
+:root {
+  --ground: #f3f5f4;
+  --panel: #ffffff;
+  --ink: #17201d;
+  --muted: #5c6a65;
+  --line: #d9e0dd;
+  --street: #c9d1ce;
+  --major: #a7b2ae;
+  --hood: #8d9a95;
+  --water: #e4ecf2;
+  --accent: #0b6e5f;
+  --accent-soft: #d6ece7;
+  --ghost: rgba(23, 32, 29, 0.16);
+  --c-bike: #2363c9;
+  --c-parks: #2c8a45;
+  --c-streets: #d06a0a;
+  --c-traffic: #8446c2;
+  --c-trash: #0d8784;
+  --c-noise: #c2386f;
+  --c-other: #66706c;
+  --halo: #ffffff;
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #121816; --panel: #19211e; --ink: #e6ece9; --muted: #98a6a0; --line: #2c3633;
+    --street: #2a3431; --major: #3f4b47; --hood: #5f6d68; --water: #16202a;
+    --accent: #4fc2ac; --accent-soft: #1f3a34; --ghost: rgba(230, 236, 233, 0.16);
+    --c-bike: #6ea0ff; --c-parks: #5cc777; --c-streets: #f39c45; --c-traffic: #b88af0;
+    --c-trash: #3fc6c0; --c-noise: #f075a8; --c-other: #9ba6a1; --halo: #121816;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #121816; --panel: #19211e; --ink: #e6ece9; --muted: #98a6a0; --line: #2c3633;
+  --street: #2a3431; --major: #3f4b47; --hood: #5f6d68; --water: #16202a;
+  --accent: #4fc2ac; --accent-soft: #1f3a34; --ghost: rgba(230, 236, 233, 0.16);
+  --c-bike: #6ea0ff; --c-parks: #5cc777; --c-streets: #f39c45; --c-traffic: #b88af0;
+  --c-trash: #3fc6c0; --c-noise: #f075a8; --c-other: #9ba6a1; --halo: #121816;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--ground); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+header {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; background: var(--panel);
+  border-bottom: 1px solid var(--line); padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1 { font-family: var(--f-display); font-weight: 700; font-size: 26px; letter-spacing: 0.01em; margin: 0; line-height: 1.1; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 13px; }
+.app { flex: 1; min-height: 0; display: grid; grid-template-columns: 340px 1fr; }
+aside {
+  background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; min-width: 0;
+  padding-block: 16px 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px;
+  display: flex; flex-direction: column; gap: 22px;
+}
+.label {
+  font-family: var(--f-display); font-weight: 600; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 8px;
+}
+.count { display: flex; align-items: baseline; gap: 8px; }
+.count b { font-family: var(--f-display); font-size: 44px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.count span { color: var(--muted); }
+.range-text { font-family: var(--f-data); font-size: 12px; color: var(--muted); margin-top: 4px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+button { font: inherit; cursor: pointer; }
+.chip {
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px;
+  padding: 4px 11px; font-size: 13px;
+}
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.dates label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+.dates input {
+  font: 13px var(--f-data); color: var(--ink); background: var(--ground); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; min-width: 0; width: 100%; box-sizing: border-box;
+}
+#hist { display: block; width: 100%; height: 96px; margin-top: 14px; touch-action: none; cursor: crosshair; user-select: none; }
+#hist text { font: 10px var(--f-data); fill: var(--muted); }
+.hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.legend { display: flex; flex-direction: column; gap: 2px; }
+.legend button {
+  display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 10px; text-align: left;
+  background: none; border: 0; color: var(--ink); padding: 5px 6px; border-radius: 6px;
+}
+.legend button:hover { background: var(--ground); }
+.legend .sw { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--halo); box-shadow: 0 0 0 1px var(--line); }
+.legend .n { font-family: var(--f-data); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.legend button[aria-pressed="false"] { color: var(--muted); }
+.legend button[aria-pressed="false"] .sw { background: transparent !important; box-shadow: 0 0 0 1px var(--muted); }
+.legend-actions { display: flex; gap: 12px; margin-top: 6px; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--accent); font-size: 12px; text-decoration: underline; text-underline-offset: 2px; }
+.detail { border-top: 1px solid var(--line); padding-top: 16px; min-width: 0; }
+.detail h2 { font-family: var(--f-display); font-weight: 700; font-size: 22px; line-height: 1.15; margin: 4px 0 6px; text-wrap: balance; }
+.detail .meta { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 13px; margin: 10px 0; }
+.detail .meta dt { color: var(--muted); }
+.detail .meta dd { margin: 0; font-family: var(--f-data); font-size: 12.5px; overflow-wrap: anywhere; }
+.detail blockquote { margin: 10px 0; padding: 8px 12px; background: var(--ground); border-radius: 6px; font-size: 13px; overflow-wrap: anywhere; }
+.detail a { color: var(--accent); }
+.tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.tag i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.empty { color: var(--muted); font-size: 13px; }
+.mapwrap { position: relative; min-width: 0; min-height: 0; background: var(--water); }
+#map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.tip {
+  position: absolute; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 9px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.12); max-width: 240px; z-index: 2;
+}
+.tip b { display: block; font-weight: 600; }
+.tip span { font-family: var(--f-data); color: var(--muted); font-size: 11px; }
+.tip.has-photo { width: 260px; max-width: calc(100% - 16px); padding: 0 0 7px; overflow: hidden; }
+.tip.has-photo b, .tip.has-photo span { padding: 0 9px; }
+.tip img, .detail img { display: block; width: 100%; height: auto; max-height: 195px; object-fit: cover; background: var(--ground); }
+.tip img { margin-bottom: 6px; }
+.tip .ph, .detail .ph {
+  display: flex; align-items: center; justify-content: center; height: 64px; margin-bottom: 6px;
+  background: var(--ground); color: var(--muted); font-size: 11px; font-family: var(--f-data);
+}
+.detail img, .detail .ph { border-radius: 6px; margin: 10px 0; }
+.zoom {
+  position: absolute; right: max(12px, calc(env(safe-area-inset-right, 0px) + 12px)); top: 12px;
+  display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+}
+.zoom button { width: 34px; height: 34px; border: 0; background: none; color: var(--ink); font-size: 18px; }
+.zoom button + button { border-top: 1px solid var(--line); }
+.zoom button:hover { background: var(--ground); }
+.credit {
+  position: absolute; left: 10px; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); font-size: 11px; color: var(--muted);
+  background: var(--panel); padding: 2px 7px; border-radius: 4px; opacity: .9;
+}
+@media (max-width: 760px) {
+  body { overflow: auto; }
+  .app { display: flex; flex-direction: column; }
+  .mapwrap { height: 62vh; min-height: 340px; order: -1; flex: none; }
+  aside { border-right: 0; overflow: visible; padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+}
+</style>
+
+<header>
+  <h1>Cambridge Open Tickets</h1>
+  <div class="sub">Commonwealth Connect service requests still open on 9 Nov 2026</div>
+</header>
+<div class="app">
+  <aside>
+    <section>
+      <div class="count"><b id="nShown">0</b><span id="nTotal">of 0 open tickets</span></div>
+      <div class="range-text" id="rangeText"></div>
+    </section>
+    <section>
+      <p class="label">Date created</p>
+      <div class="presets" id="presets">
+        <button class="chip" data-p="7" aria-pressed="false">Last 7 days</button>
+        <button class="chip" data-p="30" aria-pressed="false">Last 30 days</button>
+        <button class="chip" data-p="90" aria-pressed="false">Last 90 days</button>
+        <button class="chip" data-p="ytd" aria-pressed="false">2026</button>
+        <button class="chip" data-p="all" aria-pressed="true">All time</button>
+      </div>
+      <div class="dates">
+        <label for="from">From<input type="date" id="from"></label>
+        <label for="to">To<input type="date" id="to"></label>
+      </div>
+      <svg id="hist" role="img" aria-label="Tickets created per month; drag to choose a date range"></svg>
+      <div class="hint">Tickets created per month. Drag across the bars to pick a range.</div>
+    </section>
+    <section>
+      <p class="label">Issue category</p>
+      <div class="legend" id="legend"></div>
+      <div class="legend-actions">
+        <button class="link-btn" id="allCats">Show all</button>
+        <button class="link-btn" id="noCats">Hide all</button>
+      </div>
+    </section>
+    <section class="detail" id="detail">
+      <p class="label">Selected ticket</p>
+      <p class="empty">Click a dot on the map to see the ticket.</p>
+    </section>
+  </aside>
+  <div class="mapwrap" id="mapwrap">
+    <canvas id="map" aria-label="Map of open tickets in Cambridge"></canvas>
+    <div class="tip" id="tip" hidden></div>
+    <div class="zoom">
+      <button id="zin" aria-label="Zoom in">+</button>
+      <button id="zout" aria-label="Zoom out">−</button>
+      <button id="zreset" aria-label="Reset view" style="font-size:13px">⤢</button>
+    </div>
+    <div class="credit">Streets &amp; neighborhoods: City of Cambridge GIS</div>
+  </div>
+</div>
+
+<script>/*DATA*/</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+(() => {
+  const D = window.TICKETS;
+  const GROUPS = [
+    ['bike', 'Bike lanes & racks'], ['parks', 'Parks'], ['streets', 'Streets, sidewalks & trees'],
+    ['traffic', 'Traffic, signals & parking'], ['trash', 'Trash, recycling & rodents'],
+    ['noise', 'Noise & construction'], ['other', 'Other']
+  ];
+  const GROUP_NAME = Object.fromEntries(GROUPS);
+  const AS_OF = new Date(D.asOf + 'T23:59:59');
+  const DAY = 864e5;
+
+  const tickets = D.tickets.map(t => {
+    const [id, ti, created, updated, lat, lng, addr, desc, img] = t;
+    const [type, group] = D.types[ti];
+    const c = new Date(created);
+    return { id, type, group, created: c, day: created.slice(0, 10), updated, lat, lng, addr, desc, img };
+  });
+
+  // ---------- state ----------
+  const firstDay = tickets[0].day;
+  const state = { from: firstDay, to: D.asOf, groups: new Set(GROUPS.map(g => g[0])), selected: null, preset: 'all' };
+  try {
+    const saved = JSON.parse(localStorage.getItem('cotm-filter') || 'null');
+    if (saved && saved.from && saved.to) { state.from = saved.from; state.to = saved.to; state.preset = saved.preset || null; }
+  } catch (e) {}
+  const save = () => { try { localStorage.setItem('cotm-filter', JSON.stringify({ from: state.from, to: state.to, preset: state.preset })); } catch (e) {} };
+
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let colors = {};
+  const readColors = () => {
+    colors = {
+      street: css('--street'), major: css('--major'), hood: css('--hood'), ground: css('--ground'),
+      ghost: css('--ghost'), halo: css('--halo'), ink: css('--ink'), muted: css('--muted'), accent: css('--accent')
+    };
+    GROUPS.forEach(([g]) => colors[g] = css('--c-' + g));
+  };
+  readColors();
+
+  const inDate = t => t.day >= state.from && t.day <= state.to;
+  const visible = t => inDate(t) && state.groups.has(t.group);
+
+  // ---------- projection ----------
+  const canvas = document.getElementById('map');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('mapwrap');
+  const W0 = 1000, H0 = 1000;
+  const hoodGeo = { type: 'FeatureCollection', features: D.hoods.map(h => ({ type: 'Feature', properties: { name: h.name }, geometry: { type: 'Polygon', coordinates: h.rings } })) };
+  const proj = d3.geoMercator().fitExtent([[20, 20], [W0 - 20, H0 - 20]], hoodGeo);
+  const P = ([x, y]) => proj([x, y]);
+  const minor = D.minor.map(l => l.map(P));
+  const major = D.major.map(l => l.map(P));
+  const hoods = D.hoods.map(h => ({ name: h.name, rings: h.rings.map(r => r.map(P)), c: proj(d3.geoCentroid({ type: 'Polygon', coordinates: h.rings })) }));
+  tickets.forEach(t => { const p = proj([t.lng, t.lat]); t.x = p[0]; t.y = p[1]; });
+
+  let w = 0, h = 0, dpr = 1, base = d3.zoomIdentity, transform = d3.zoomIdentity, tree = null, inited = false;
+
+  function fitBase() {
+    const s = Math.min(w / W0, h / H0) * 1.02;
+    base = d3.zoomIdentity.translate((w - W0 * s) / 2, (h - H0 * s) / 2).scale(s);
+  }
+
+  function pathLines(lines) {
+    ctx.beginPath();
+    for (const l of lines) { ctx.moveTo(l[0][0], l[0][1]); for (let i = 1; i < l.length; i++) ctx.lineTo(l[i][0], l[i][1]); }
+  }
+
+  function draw() {
+    const t = transform, k = t.k;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * t.x, dpr * t.y);
+    // land
+    ctx.fillStyle = colors.ground;
+    for (const hd of hoods) { ctx.beginPath(); for (const r of hd.rings) { ctx.moveTo(r[0][0], r[0][1]); for (const p of r) ctx.lineTo(p[0], p[1]); ctx.closePath(); } ctx.fill(); }
+    // streets
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.strokeStyle = colors.street; ctx.lineWidth = 0.9 / k * Math.min(2, Math.sqrt(k)); pathLines(minor); ctx.stroke();
+    ctx.strokeStyle = colors.major; ctx.lineWidth = 1.8 / k * Math.min(2, Math.sqrt(k)); pathLines(major); ctx.stroke();
+    // neighborhoods
+    ctx.strokeStyle = colors.hood; ctx.lineWidth = 1 / k; ctx.setLineDash([4 / k, 3 / k]);
+    for (const hd of hoods) { ctx.beginPath(); for (const r of hd.rings) { ctx.moveTo(r[0][0], r[0][1]); for (const p of r) ctx.lineTo(p[0], p[1]); ctx.closePath(); } ctx.stroke(); }
+    ctx.setLineDash([]);
+    // ghost points (outside the date range or hidden category)
+    const r = Math.max(2.2, Math.min(6.5, 2.6 + Math.log2(k) * 1.2)) / k;
+    ctx.fillStyle = colors.ghost;
+    for (const tk of tickets) if (!visible(tk)) { ctx.beginPath(); ctx.arc(tk.x, tk.y, r * 0.45, 0, 6.2832); ctx.fill(); }
+    // visible points
+    ctx.lineWidth = 1 / k; ctx.strokeStyle = colors.halo;
+    for (const tk of tickets) if (visible(tk)) {
+      ctx.beginPath(); ctx.arc(tk.x, tk.y, r, 0, 6.2832); ctx.fillStyle = colors[tk.group]; ctx.fill(); ctx.stroke();
+    }
+    if (state.selected) {
+      const s = state.selected;
+      ctx.beginPath(); ctx.arc(s.x, s.y, r * 2.1, 0, 6.2832); ctx.lineWidth = 2.2 / k; ctx.strokeStyle = colors.ink; ctx.stroke();
+    }
+    // neighborhood labels in screen space
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.font = '600 12px "Barlow Condensed", "Arial Narrow", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const hd of hoods) {
+      const [x, y] = t.apply(hd.c);
+      if (x < -50 || y < -20 || x > w + 50 || y > h + 20) continue;
+      const label = hd.name.toUpperCase();
+      ctx.lineWidth = 3; ctx.strokeStyle = colors.ground; ctx.globalAlpha = 0.85; ctx.strokeText(label, x, y);
+      ctx.globalAlpha = 1; ctx.fillStyle = colors.muted; ctx.fillText(label, x, y);
+    }
+  }
+
+  function rebuildTree() { tree = d3.quadtree(tickets.filter(visible), d => d.x, d => d.y); }
+
+  const zoom = d3.zoom().scaleExtent([0.8, 40]).on('zoom', e => {
+    transform = e.transform; hideTip(); requestAnimationFrame(draw);
+  });
+  const sel = d3.select(canvas).call(zoom).on('dblclick.zoom', null);
+
+  function resize() {
+    const rect = wrap.getBoundingClientRect();
+    w = Math.max(1, rect.width); h = Math.max(1, rect.height); dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    const atBase = !inited || (transform.k === base.k && transform.x === base.x && transform.y === base.y);
+    fitBase();
+    sel.call(zoom.transform, atBase ? base : transform);
+    inited = true;
+    draw();
+  }
+  new ResizeObserver(resize).observe(wrap);
+
+  document.getElementById('zin').onclick = () => sel.transition().duration(250).call(zoom.scaleBy, 1.8);
+  document.getElementById('zout').onclick = () => sel.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
+  document.getElementById('zreset').onclick = () => sel.transition().duration(350).call(zoom.transform, base);
+
+  // ---------- hover & click ----------
+  const tip = document.getElementById('tip');
+  const fmt = d3.timeFormat('%-d %b %Y');
+  const fmtT = d3.timeFormat('%-d %b %Y, %-I:%M %p');
+  function pick(ev) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
+    const [x, y] = transform.invert([mx, my]);
+    return { t: tree && tree.find(x, y, 9 / transform.k), mx, my };
+  }
+  // Photos: thumbnails ship in photos.json, loaded after the map draws.
+  let photos = null, photosFailed = false;
+  fetch('photos.json').then(r => { if (!r.ok) throw 0; return r.json(); })
+    .then(j => { photos = j; refreshPhotoViews(); })
+    .catch(() => { photosFailed = true; refreshPhotoViews(); });
+  function photoNode(t, onload) {
+    if (!t.img) return null;
+    const src = photos && photos[t.id];
+    if (src) { const im = new Image(); im.alt = 'Photo attached to ticket ' + t.id; if (onload) im.onload = onload; im.src = src; return im; }
+    const msg = !photos && !photosFailed ? 'Loading photo…' : 'Photo is no longer available';
+    const d = document.createElement('div'); d.className = 'ph'; d.textContent = msg; return d;
+  }
+  function refreshPhotoViews() {
+    if (!tip.hidden && tipTicket) showTip(tipTicket, lastMx, lastMy);
+    if (state.selected) renderDetail();
+  }
+
+  let tipTicket = null, lastMx = 0, lastMy = 0;
+  function placeTip() {
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(w - tw - 8, lastMx + 14)) + 'px';
+    tip.style.top = Math.max(8, lastMy + th + 20 > h ? lastMy - th - 10 : lastMy + 14) + 'px';
+  }
+  function showTip(t, mx, my) {
+    lastMx = mx; lastMy = my;
+    if (t !== tipTicket || tip.hidden || tip.dataset.photos !== String(!!photos)) {
+      tipTicket = t;
+      tip.innerHTML = '';
+      tip.dataset.photos = String(!!photos);
+      const ph = photoNode(t, placeTip);
+      tip.classList.toggle('has-photo', !!ph);
+      const b = document.createElement('b'); b.textContent = t.type;
+      const s = document.createElement('span'); s.textContent = fmt(t.created) + ' · ' + t.addr.split(' Cambridge')[0];
+      if (ph) tip.append(ph);
+      tip.append(b, s);
+    }
+    tip.hidden = false;
+    placeTip();
+  }
+  function hideTip() { tip.hidden = true; tipTicket = null; }
+  canvas.addEventListener('pointermove', ev => {
+    if (ev.buttons) return;
+    const { t, mx, my } = pick(ev);
+    canvas.style.cursor = t ? 'pointer' : 'grab';
+    if (!t) return hideTip();
+    showTip(t, mx, my);
+  });
+  canvas.addEventListener('pointerleave', hideTip);
+  canvas.addEventListener('click', ev => {
+    const { t } = pick(ev);
+    state.selected = t || null; renderDetail(); draw();
+  });
+
+  // ---------- detail ----------
+  const detail = document.getElementById('detail');
+  function el(tag, props = {}, ...kids) { const e = document.createElement(tag); Object.assign(e, props); e.append(...kids); return e; }
+  function renderDetail() {
+    detail.innerHTML = '';
+    detail.append(el('p', { className: 'label', textContent: 'Selected ticket' }));
+    const t = state.selected;
+    if (!t) { detail.append(el('p', { className: 'empty', textContent: 'Click a dot on the map to see the ticket.' })); return; }
+    const tag = el('span', { className: 'tag' }, el('i'), GROUP_NAME[t.group]);
+    tag.querySelector('i').style.background = colors[t.group];
+    const days = Math.floor((AS_OF - t.created) / DAY);
+    const dl = el('dl', { className: 'meta' });
+    [['Ticket', '#' + t.id], ['Created', fmtT(t.created)], ['Updated', fmt(new Date(t.updated + 'T12:00'))],
+     ['Open for', days === 0 ? 'less than a day' : days.toLocaleString() + (days === 1 ? ' day' : ' days')],
+     ['Address', t.addr || 'No address given'], ['Photo', !t.img ? 'None' : (photos && photos[t.id] ? 'Yes (full size on SeeClickFix)' : 'Listed, but no longer available')]]
+      .forEach(([k, v]) => dl.append(el('dt', { textContent: k }), el('dd', { textContent: v })));
+    detail.append(tag, el('h2', { textContent: t.type }));
+    const ph = photoNode(t);
+    if (ph) detail.append(ph);
+    detail.append(dl);
+    detail.append(t.desc ? el('blockquote', { textContent: t.desc }) : el('p', { className: 'empty', textContent: 'No description was given.' }));
+    detail.append(el('a', { href: 'https://seeclickfix.com/issues/' + t.id, target: '_blank', rel: 'noopener', textContent: 'Open on SeeClickFix ↗' }));
+  }
+
+  // ---------- date controls ----------
+  const fromIn = document.getElementById('from'), toIn = document.getElementById('to');
+  fromIn.min = toIn.min = firstDay; fromIn.max = toIn.max = D.asOf;
+  const iso = d => d3.timeFormat('%Y-%m-%d')(d);
+  function setRange(from, to, preset) {
+    if (from > to) [from, to] = [to, from];
+    state.from = from < firstDay ? firstDay : from; state.to = to > D.asOf ? D.asOf : to; state.preset = preset || null;
+    save(); update();
+  }
+  document.getElementById('presets').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const p = b.dataset.p;
+    if (p === 'all') setRange(firstDay, D.asOf, p);
+    else if (p === 'ytd') setRange('2026-01-01', D.asOf, p);
+    else setRange(iso(new Date(AS_OF - (+p - 1) * DAY)), D.asOf, p);
+  });
+  fromIn.addEventListener('change', () => fromIn.value && setRange(fromIn.value, state.to));
+  toIn.addEventListener('change', () => toIn.value && setRange(state.from, toIn.value));
+
+  // ---------- histogram ----------
+  const hist = d3.select('#hist');
+  const months = d3.timeMonths(new Date(2020, 0, 1), new Date(2026, 11, 1));
+  const bins = [{ label: '2009–19', start: firstDay, end: '2019-12-31', n: 0, early: true }]
+    .concat(months.map(m => ({ start: iso(m), end: iso(d3.timeDay.offset(d3.timeMonth.offset(m, 1), -1)), m, n: 0 })));
+  tickets.forEach(t => { const b = bins.find(b => t.day >= b.start && t.day <= b.end); if (b) b.n++; });
+  let hw = 0; const HH = 96, padB = 16, gap = 6;
+  let bx;
+  function drawHist() {
+    hw = document.getElementById('hist').clientWidth || 300;
+    hist.attr('viewBox', `0 0 ${hw} ${HH}`);
+    const earlyW = 26;
+    const x = d3.scaleBand().domain(d3.range(1, bins.length)).range([earlyW + gap, hw]).paddingInner(0.18);
+    bx = i => i === 0 ? { x: 0, w: earlyW } : { x: x(i), w: x.bandwidth() };
+    const max = d3.max(bins, b => b.n);
+    const y = d3.scaleSqrt().domain([0, max]).range([0, HH - padB - 14]);
+    hist.selectAll('*').remove();
+    const on = b => b.end >= state.from && b.start <= state.to;
+    hist.append('g').selectAll('rect').data(bins).join('rect')
+      .attr('x', (b, i) => bx(i).x).attr('width', (b, i) => Math.max(1, bx(i).w))
+      .attr('y', b => HH - padB - y(b.n)).attr('height', b => Math.max(b.n ? 1.5 : 0, y(b.n)))
+      .attr('rx', 1).attr('fill', b => on(b) ? colors.accent : colors.ghost);
+    hist.append('line').attr('x1', 0).attr('x2', hw).attr('y1', HH - padB + 0.5).attr('y2', HH - padB + 0.5).attr('stroke', colors.ghost);
+    const ticks = [[0, '<2020', 'start']];
+    for (let i = 1; i < bins.length; i++) if (bins[i].m.getMonth() === 0) ticks.push([i, String(bins[i].m.getFullYear()), 'start']);
+    hist.append('g').selectAll('text').data(ticks).join('text')
+      .attr('x', d => bx(d[0]).x).attr('y', HH - 3).text(d => d[1]);
+    const peak = bins.reduce((a, b) => b.n > a.n ? b : a);
+    const pi = bins.indexOf(peak);
+    hist.append('text').attr('x', Math.min(hw - 2, bx(pi).x + bx(pi).w)).attr('y', HH - padB - y(peak.n) - 4)
+      .attr('text-anchor', 'end').text(peak.n + ' in ' + d3.timeFormat('%b %Y')(peak.m));
+  }
+  function binAt(px) {
+    let best = 0, bd = Infinity;
+    bins.forEach((b, i) => { const c = bx(i).x + bx(i).w / 2, d = Math.abs(px - c); if (d < bd) { bd = d; best = i; } });
+    return best;
+  }
+  let drag = null;
+  const histEl = document.getElementById('hist');
+  const hx = ev => (ev.clientX - histEl.getBoundingClientRect().left) * (hw / histEl.getBoundingClientRect().width);
+  histEl.addEventListener('pointerdown', ev => { histEl.setPointerCapture(ev.pointerId); drag = binAt(hx(ev)); applyDrag(drag); });
+  histEl.addEventListener('pointermove', ev => { if (drag !== null) applyDrag(binAt(hx(ev))); });
+  histEl.addEventListener('pointerup', () => { drag = null; });
+  function applyDrag(i) {
+    const a = Math.min(drag, i), b = Math.max(drag, i);
+    setRange(bins[a].start, bins[b].end);
+  }
+  new ResizeObserver(() => drawHist()).observe(histEl);
+
+  // ---------- legend ----------
+  const legend = document.getElementById('legend');
+  const legendBtns = GROUPS.map(([g, name]) => {
+    const b = el('button', { type: 'button' }, el('span', { className: 'sw' }), el('span', { textContent: name }), el('span', { className: 'n' }));
+    b.dataset.g = g;
+    b.addEventListener('click', () => { state.groups.has(g) ? state.groups.delete(g) : state.groups.add(g); update(); });
+    legend.append(b); return b;
+  });
+  document.getElementById('allCats').onclick = () => { GROUPS.forEach(([g]) => state.groups.add(g)); update(); };
+  document.getElementById('noCats').onclick = () => { state.groups.clear(); update(); };
+
+  // ---------- update ----------
+  const nf = d3.format(',');
+  function update() {
+    fromIn.value = state.from; toIn.value = state.to;
+    document.querySelectorAll('#presets .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.p === state.preset)));
+    const inRange = tickets.filter(inDate);
+    const shown = inRange.filter(t => state.groups.has(t.group));
+    document.getElementById('nShown').textContent = nf(shown.length);
+    document.getElementById('nTotal').textContent = 'of ' + nf(tickets.length) + ' open tickets';
+    const f = new Date(state.from + 'T12:00'), t = new Date(state.to + 'T12:00');
+    document.getElementById('rangeText').textContent = 'Created ' + fmt(f) + ' – ' + fmt(t) + ' · ' + nf(inRange.length) + ' in this range';
+    const counts = d3.rollup(inRange, v => v.length, d => d.group);
+    legendBtns.forEach(b => {
+      const g = b.dataset.g;
+      b.setAttribute('aria-pressed', String(state.groups.has(g)));
+      b.querySelector('.sw').style.background = colors[g];
+      b.querySelector('.n').textContent = nf(counts.get(g) || 0);
+    });
+    if (state.selected && !visible(state.selected)) { state.selected = null; renderDetail(); }
+    rebuildTree(); drawHist(); draw();
+  }
+
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const retheme = () => { readColors(); update(); renderDetail(); };
+  mq.addEventListener && mq.addEventListener('change', retheme);
+  new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  document.fonts && document.fonts.ready.then(draw);
+
+  update();
+})();
+</script>
