@@ -2,7 +2,9 @@
 
 An interactive map of the 1,127 service requests that were still open in Cambridge, MA on 9 November 2026. The requests come from Commonwealth Connect, the city's SeeClickFix-based 311 system.
 
-Open `index.html` to use the map:
+**Live map: https://hqu.github.io/Cambridge-311-map-Nov-2026/**
+
+Open the live map, or `index.html`, to use it:
 
 - **Date filter.** Use the preset buttons (last 7, 30 or 90 days, 2026, all time), pick start and end dates, or drag across the monthly bar chart. Tickets outside the range stay on the map as faint dots.
 - **Categories.** The 146 issue types are sorted into seven groups (bike, parks, streets and sidewalks, traffic and parking, trash and rodents, noise and construction, other). You can turn each group on or off.
