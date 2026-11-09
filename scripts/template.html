@@ -142,6 +142,45 @@ button { font: inherit; cursor: pointer; }
   position: absolute; left: 10px; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); font-size: 11px; color: var(--muted);
   background: var(--panel); padding: 2px 7px; border-radius: 4px; opacity: .9;
 }
+.how-link {
+  margin-left: auto; background: none; border: 0; padding: 0; color: var(--accent); font-size: 13px;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.how-link:hover { text-decoration-thickness: 2px; }
+#how {
+  width: min(760px, calc(100% - 32px)); max-height: min(86vh, 900px); padding: 0; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--panel); color: var(--ink); box-shadow: 0 18px 50px rgba(0,0,0,.25);
+}
+#how::backdrop { background: rgba(10, 16, 14, 0.55); }
+.how-head {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: flex-start; gap: 16px; background: var(--panel);
+  border-bottom: 1px solid var(--line); padding: 18px 20px 14px;
+}
+.how-head h2 { font-family: var(--f-display); font-weight: 700; font-size: 26px; line-height: 1.1; margin: 0; text-wrap: balance; }
+.how-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.how-close {
+  margin-left: auto; flex: none; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--ink); font-size: 18px; line-height: 1;
+}
+.how-close:hover { background: var(--ground); }
+.how-body { padding: 18px 20px 24px; display: flex; flex-direction: column; gap: 22px; }
+.how-body > p { margin: 0; max-width: 65ch; }
+.how-body a { color: var(--accent); overflow-wrap: anywhere; }
+.data-box { background: var(--accent-soft); border-radius: 8px; padding: 12px 14px; font-size: 13.5px; }
+.data-box b { display: block; margin-bottom: 4px; }
+.step { display: grid; grid-template-columns: 30px 1fr; gap: 6px 12px; }
+.step-n {
+  grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--panel);
+  font: 600 13px var(--f-data); display: flex; align-items: center; justify-content: center;
+}
+.prompt {
+  min-width: 0; margin: 0; background: var(--ground); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; font: 13px/1.5 var(--f-data); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.prompt .who { display: block; font: 600 11px var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.did { min-width: 0; margin: 0; font-size: 13.5px; color: var(--ink); }
+.did .who { font-weight: 600; color: var(--accent); }
+.how-foot { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 14px; }
 @media (max-width: 760px) {
   body { overflow: auto; }
   .app { display: flex; flex-direction: column; }
@@ -153,7 +192,64 @@ button { font: inherit; cursor: pointer; }
 <header>
   <h1>Cambridge Open Tickets</h1>
   <div class="sub">Commonwealth Connect service requests still open on 9 Nov 2026</div>
+  <button class="how-link" id="howOpen" type="button" aria-haspopup="dialog">How this was built using Claude Code</button>
 </header>
+<dialog id="how" aria-labelledby="howTitle">
+  <div class="how-head">
+    <div>
+      <h2 id="howTitle">How this was built using Claude Code</h2>
+      <p>Every prompt used to build this map, in order, with a short note on what Claude did after each one.</p>
+    </div>
+    <button class="how-close" id="howClose" type="button" aria-label="Close">×</button>
+  </div>
+  <div class="how-body">
+    <div class="data-box">
+      <b>Get the data first</b>
+      Download the open-tickets file from the City of Cambridge Open Data Portal:
+      <a href="https://data.cambridgema.gov/Public-Works/Commonwealth-Connect-Service-Requests-Open-Tickets/bstz-ic97/about_data" target="_blank" rel="noopener">Commonwealth Connect Service Requests – Open Tickets</a>.
+      On that page choose <b style="display:inline">Export</b>, then CSV. Save it in your project folder, then attach it to your first prompt in Claude Code by typing <code>@</code> and the file name. The portal always serves the current open tickets, so your copy will differ from the 9 Nov 2026 snapshot used here.
+    </div>
+
+    <div class="step">
+      <span class="step-n">1</span>
+      <p class="prompt"><span class="who">Prompt</span>@Commonwealth_Connect_Service_Requests_-_Open_Tickets_20261109.csv
+What is in this data?</p>
+      <p class="did"><span class="who">Claude</span> profiled the file: 1,127 open tickets in 13 columns (ID, issue type, description, three timestamps, address, coordinates, photo link). It listed the most common issue types, the date range (2009 to 2026), and quirks such as mixed date formats and reopened tickets.</p>
+    </div>
+
+    <div class="step">
+      <span class="step-n">2</span>
+      <p class="prompt"><span class="who">Prompt</span>Build a map for all the tickets and add a filter by date</p>
+      <p class="did"><span class="who">Claude</span> downloaded Cambridge's street centerlines and neighborhood boundaries from the city's public GIS repository, grouped the 146 issue types into seven categories, and built this page: a zoomable map, date presets, start and end dates, a monthly bar chart you can drag across, and category toggles.</p>
+    </div>
+
+    <div class="step">
+      <span class="step-n">3</span>
+      <p class="prompt"><span class="who">Prompt</span>When user mouse over a point in the map, the pop up show show a photo if there is one.</p>
+      <p class="did"><span class="who">Claude</span> downloaded the 753 ticket photos from SeeClickFix, shrank them to small thumbnails (741 were still available), stored them with the page, and added them to the hover popup and the side panel.</p>
+    </div>
+
+    <div class="step">
+      <span class="step-n">4</span>
+      <p class="prompt"><span class="who">Prompt</span>export this to my github and name the repo Cambridge 311 map Nov 2026</p>
+      <p class="did"><span class="who">Claude</span> asked whether the repo should be private or public (the answer was public), then created the repo <code>Cambridge-311-map-Nov-2026</code> with the map, photos, source data, build scripts and a README, and pushed it.</p>
+    </div>
+
+    <div class="step">
+      <span class="step-n">5</span>
+      <p class="prompt"><span class="who">Prompt</span>Yes, enable Pages</p>
+      <p class="did"><span class="who">Claude</span> turned on GitHub Pages for the repo, waited for the site to build, checked that the page and photos load, and added the live link to the README.</p>
+    </div>
+
+    <div class="step">
+      <span class="step-n">6</span>
+      <p class="prompt"><span class="who">Prompt</span>I want to let the user see the entire transcript of the prompts I used to build this artifact. Can you add a link "How this was build using Claude Code".  It pop ups a page with the transcript.  Include the link https://data.cambridgema.gov/Public-Works/Commonwealth-Connect-Service-Requests-Open-Tickets/bstz-ic97/about_data in the transcript instructions. so users can download the data file.</p>
+      <p class="did"><span class="who">Claude</span> added the link at the top of the page and this popup, including the instructions for downloading the data.</p>
+    </div>
+
+    <p class="how-foot">The prompts are shown as typed, apart from step 1, where the path to the file on the author's computer was replaced with the file name. One prompt sent to this session by mistake, about a different project, is left out.</p>
+  </div>
+</dialog>
 <div class="app">
   <aside>
     <section>
@@ -522,6 +618,18 @@ button { font: inherit; cursor: pointer; }
     if (state.selected && !visible(state.selected)) { state.selected = null; renderDetail(); }
     rebuildTree(); drawHist(); draw();
   }
+
+  // ---------- "How this was built" popup (also opens from #how-it-was-built) ----------
+  const how = document.getElementById('how');
+  const openHow = () => { if (!how.open) how.showModal(); };
+  const closeHow = () => { if (how.open) how.close(); };
+  document.getElementById('howOpen').addEventListener('click', () => { openHow(); try { history.replaceState(null, '', '#how-it-was-built'); } catch (e) {} });
+  document.getElementById('howClose').addEventListener('click', closeHow);
+  how.addEventListener('click', e => { if (e.target === how) closeHow(); });
+  how.addEventListener('close', () => { if (location.hash === '#how-it-was-built') { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} } });
+  const fromHash = () => { if (location.hash === '#how-it-was-built') openHow(); };
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
 
   const mq = window.matchMedia('(prefers-color-scheme: dark)');
   const retheme = () => { readColors(); update(); renderDetail(); };
